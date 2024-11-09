@@ -1,3 +1,5 @@
+| Project archived, see https://github.com/zwtil/zuu for newest implementations
+
 # zuu
 zack's useful utilities
 
