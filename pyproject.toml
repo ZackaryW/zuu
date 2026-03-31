@@ -1,0 +1,23 @@
+[project]
+name = "zuu"
+version = "202602.1.0"
+description = "Zack's Useful Utilities"
+readme = "README.md"
+authors = [
+    { name = "ZackaryW", email = "36378555+ZackaryW@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+zuu = "zuu:main"
+
+[build-system]
+requires = ["uv_build>=0.10.9,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "psutil>=7.2.2",
+    "pytest>=9.0.2",
+]
