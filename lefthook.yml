@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    update-current:
+      run: uv run python scripts/update_current.py --check

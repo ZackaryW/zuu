@@ -1,6 +1,7 @@
 import argparse
 import re
 import shutil
+import sys
 from pathlib import Path
 
 
@@ -25,7 +26,14 @@ def find_latest_version_dir(package_dir: Path) -> Path:
     if not version_dirs:
         raise FileNotFoundError(f"No version directories found in {package_dir}")
 
-    return max(version_dirs, key=lambda child: parse_version_dir_name(child.name))
+    def version_key(child: Path) -> tuple[int, int]:
+        parsed_version = parse_version_dir_name(child.name)
+        if parsed_version is None:
+            raise ValueError(f"Invalid version directory name: {child.name}")
+
+        return parsed_version
+
+    return max(version_dirs, key=version_key)
 
 
 def render_export_module(package_name: str, version_name: str, module_parts: tuple[str, ...]) -> str:
@@ -44,25 +52,53 @@ def _iter_python_files(root_dir: Path) -> list[Path]:
     )
 
 
-def sync_current_exports(package_dir: Path) -> Path:
+def build_expected_current_exports(package_dir: Path) -> tuple[Path, dict[Path, str]]:
     package_dir = package_dir.resolve()
     latest_dir = find_latest_version_dir(package_dir)
+    expected_exports: dict[Path, str] = {}
+
+    for source_path in _iter_python_files(latest_dir):
+        relative_path = source_path.relative_to(latest_dir)
+        module_path = relative_path.with_suffix("")
+        expected_exports[relative_path] = render_export_module(
+            package_dir.name,
+            latest_dir.name,
+            module_path.parts,
+        )
+
+    return latest_dir, expected_exports
+
+
+def read_current_exports(current_dir: Path) -> dict[Path, str]:
+    if not current_dir.exists():
+        return {}
+
+    return {
+        path.relative_to(current_dir): path.read_text(encoding="utf-8")
+        for path in sorted(path for path in current_dir.rglob("*.py") if "__pycache__" not in path.parts)
+    }
+
+
+def current_exports_are_up_to_date(package_dir: Path) -> tuple[bool, Path]:
+    package_dir = package_dir.resolve()
+    latest_dir, expected_exports = build_expected_current_exports(package_dir)
+    actual_exports = read_current_exports(package_dir / "current")
+    return actual_exports == expected_exports, latest_dir
+
+
+def sync_current_exports(package_dir: Path) -> Path:
+    package_dir = package_dir.resolve()
+    latest_dir, expected_exports = build_expected_current_exports(package_dir)
     current_dir = package_dir / "current"
 
     if current_dir.exists():
         shutil.rmtree(current_dir)
     current_dir.mkdir(parents=True, exist_ok=True)
 
-    for source_path in _iter_python_files(latest_dir):
-        relative_path = source_path.relative_to(latest_dir)
-        module_path = relative_path.with_suffix("")
-        module_parts = module_path.parts
+    for relative_path, content in expected_exports.items():
         output_path = current_dir / relative_path
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            render_export_module(package_dir.name, latest_dir.name, module_parts),
-            encoding="utf-8",
-        )
+        output_path.write_text(content, encoding="utf-8")
 
     return latest_dir
 
@@ -77,7 +113,24 @@ def main() -> None:
         default=Path(__file__).resolve().parents[1] / "src" / "zuu",
         help="Path to the zuu package directory that contains versioned folders.",
     )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Exit with a non-zero status when src/zuu/current is not aligned to the latest versioned package.",
+    )
     args = parser.parse_args()
+
+    if args.check:
+        is_up_to_date, latest_dir = current_exports_are_up_to_date(args.package_dir)
+        if not is_up_to_date:
+            print(
+                f"src/zuu/current is out of date for {latest_dir.name}. Run: uv run python scripts/update_current.py",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        print(latest_dir.name)
+        return
 
     latest_dir = sync_current_exports(args.package_dir)
     print(latest_dir.name)
