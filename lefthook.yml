@@ -2,3 +2,5 @@ pre-commit:
   commands:
     update-current:
       run: uv run python scripts/update_current.py --check
+    bump-micro-version:
+      run: uv run python scripts/bump_micro_version.py --ensure-staged

@@ -1,6 +1,6 @@
 [project]
 name = "zuu"
-version = "202602.1.0"
+version = "202602.1.1"
 description = "Zack's Useful Utilities"
 readme = "README.md"
 authors = [
