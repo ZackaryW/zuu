@@ -1,6 +1,7 @@
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -86,6 +87,32 @@ def current_exports_are_up_to_date(package_dir: Path) -> tuple[bool, Path]:
     return actual_exports == expected_exports, latest_dir
 
 
+def run_git_command(repository_root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(repository_root), *args],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+
+def _raise_for_failed_git_command(
+    repository_root: Path,
+    command_description: str,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    if result.returncode == 0:
+        return
+
+    message = result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}"
+    raise RuntimeError(f"{command_description} failed for {repository_root}: {message}")
+
+
+def stage_path(repository_root: Path, relative_path: str) -> None:
+    result = run_git_command(repository_root, ["add", "--all", "--", relative_path])
+    _raise_for_failed_git_command(repository_root, f"git add --all {relative_path}", result)
+
+
 def sync_current_exports(package_dir: Path) -> Path:
     package_dir = package_dir.resolve()
     latest_dir, expected_exports = build_expected_current_exports(package_dir)
@@ -103,6 +130,16 @@ def sync_current_exports(package_dir: Path) -> Path:
     return latest_dir
 
 
+def ensure_current_exports_staged(package_dir: Path, repository_root: Path) -> tuple[bool, Path]:
+    is_up_to_date, latest_dir = current_exports_are_up_to_date(package_dir)
+    if is_up_to_date:
+        return False, latest_dir
+
+    sync_current_exports(package_dir)
+    stage_path(repository_root, (package_dir / "current").relative_to(repository_root).as_posix())
+    return True, latest_dir
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Regenerate zuu.current as a thin export layer for the newest versioned package.",
@@ -118,7 +155,15 @@ def main() -> None:
         action="store_true",
         help="Exit with a non-zero status when src/zuu/current is not aligned to the latest versioned package.",
     )
+    parser.add_argument(
+        "--ensure-staged",
+        action="store_true",
+        help="Regenerate src/zuu/current and stage it when it is out of date.",
+    )
     args = parser.parse_args()
+
+    if args.check and args.ensure_staged:
+        raise ValueError("Choose either --check or --ensure-staged, not both.")
 
     if args.check:
         is_up_to_date, latest_dir = current_exports_are_up_to_date(args.package_dir)
@@ -130,6 +175,15 @@ def main() -> None:
             raise SystemExit(1)
 
         print(latest_dir.name)
+        return
+
+    if args.ensure_staged:
+        repository_root = args.package_dir.resolve().parent.parent
+        changed, latest_dir = ensure_current_exports_staged(args.package_dir, repository_root)
+        if changed:
+            print(f"Automatically refreshed and staged src/zuu/current for {latest_dir.name}.")
+        else:
+            print(latest_dir.name)
         return
 
     latest_dir = sync_current_exports(args.package_dir)

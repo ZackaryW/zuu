@@ -93,7 +93,7 @@ wheels = [
 
 [[package]]
 name = "zuu"
-version = "202602.1.0"
+version = "202602.1.2"
 source = { editable = "." }
 
 [package.dev-dependencies]

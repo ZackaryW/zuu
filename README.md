@@ -50,6 +50,9 @@ Check whether it is already up to date without modifying files:
 uv run python scripts/update_current.py --check
 ```
 
+The pre-commit hook uses an automatic mode instead. If `src/zuu/current` is stale,
+the hook regenerates it and stages the updated files automatically.
+
 For example, if both `v202602_1` and `v202603_1` exist, the script points `current` at `v202603_1`. If both `v202602_1` and `v202602_3` exist, it points `current` at `v202602_3`.
 
 ## Bump Micro Version
@@ -72,5 +75,5 @@ The pre-commit hook uses an automatic mode instead. If the newest version folder
 
 ## Hooks
 
-The repo includes [lefthook.yml](d:/zuu/lefthook.yml) with `pre-commit` checks that fail when `src/zuu/current` is stale relative to the newest `v{yearquarter}_{minor}` folder or when staged changes update the newest version folder without the required micro version bump. If the hook fails, run `uv run python scripts/update_current.py` or `uv run python scripts/bump_micro_version.py` as appropriate, review the resulting changes, and commit again.
+The repo includes [lefthook.yml](d:/zuu/lefthook.yml) with `pre-commit` automation for both generated `src/zuu/current` exports and micro version bumps. If a commit still fails, it means the hook could not safely fix the problem automatically and you should run `uv run python scripts/update_current.py` or `uv run python scripts/bump_micro_version.py`, review the resulting changes, and commit again.
 
