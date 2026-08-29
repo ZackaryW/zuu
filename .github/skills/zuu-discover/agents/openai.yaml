@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zuu Discover"
+  short_description: "Discover generic utility cases from external sources"
+  default_prompt: "Use $zuu-discover to inspect the supplied source and recommend genuinely generic zuu case candidates."
