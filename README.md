@@ -9,3 +9,4 @@
 | case3 | `GitIgnorePlan` | Plan, apply, and verify Git-ignore coverage for selected paths. | — | [Guide](docs/case3/README.md) |
 | case4 | `MarkdownTable` | Find, extract, compose, and replace Markdown pipe tables. | — | [Guide](docs/case4/README.md) |
 | case5 | `RepositoryPath` | Make repository-relative path selection safe and predictable across platforms. | — | [Guide](docs/case5/README.md) |
+| case6 | `AffectedTargets` | Choose the smallest declared target set that safely covers changed repository paths. | `case5` | [Guide](docs/case6/README.md) |
