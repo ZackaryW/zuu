@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zuu Case Development"
+  short_description: "Develop numbered zuu utility cases consistently"
+  default_prompt: "Use $zuu-case-development to add a well-scoped utility case to zuu."
