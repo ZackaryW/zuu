@@ -10,3 +10,4 @@
 | case4 | `MarkdownTable` | Find, extract, compose, and replace Markdown pipe tables. | — | [Guide](docs/case4/README.md) |
 | case5 | `RepositoryPath` | Make repository-relative path selection safe and predictable across platforms. | — | [Guide](docs/case5/README.md) |
 | case6 | `AffectedTargets` | Choose the smallest declared target set that safely covers changed repository paths. | `case5` | [Guide](docs/case6/README.md) |
+| case7 | `ProjectionPlan` | Plan updates to managed outputs without overwriting unowned or locally changed content. | — | [Guide](docs/case7/README.md) |
