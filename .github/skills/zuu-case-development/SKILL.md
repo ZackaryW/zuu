@@ -141,17 +141,28 @@ line implementation. Include composability tests when the case accepts custom
 protocols or callables. Exercise dependencies through their public APIs and leave
 the depended-on case's own behavior to its focused tests.
 
-Run the focused case tests first:
+Select pytest targets from the cases and tooling actually affected by the change.
+Run each changed case's focused directory:
 
 ```powershell
 uv run pytest -q tests/caseN
 ```
 
-Then run the complete suite when the focused tests pass:
+When one request changes multiple cases, pass only those case directories together:
 
 ```powershell
-uv run pytest -q
+uv run pytest -q tests/caseN tests/caseM
 ```
+
+Include a dependency's focused tests when its public contract or implementation was
+changed. Include tests for dependent cases only when the change can affect how those
+cases consume that dependency. Include a tooling selector such as
+`tests/tooling/test_sync_readme.py` only when the corresponding tooling changed.
+
+Never run the repository-wide pytest suite while following this skill. In
+particular, do not run `uv run pytest -q` without explicit focused paths, even after
+the relevant tests pass. If broader verification appears useful, report it as an
+optional follow-up instead of executing it.
 
 ## Write case documentation
 
