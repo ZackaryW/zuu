@@ -171,10 +171,10 @@ class UserLevelHasher:
 
 
 __all__ = [
+    "UserLevelHasher",
     "FileReference",
     "HashReference",
     "IdentifierConflictError",
     "RegistryFormatError",
     "SnapshotHasher",
-    "UserLevelHasher",
 ]

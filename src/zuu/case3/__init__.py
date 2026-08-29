@@ -81,8 +81,8 @@ from .gitignore import apply_gitignore, plan_gitignore, verify_gitignore
 from .process import run_process
 
 __all__ = [
-    "GitIgnoreError",
     "GitIgnorePlan",
+    "GitIgnoreError",
     "GitIgnorePolicy",
     "IgnoreMode",
     "ProcessResult",

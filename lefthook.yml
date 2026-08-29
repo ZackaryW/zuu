@@ -1,0 +1,5 @@
+pre-commit:
+  jobs:
+    - name: synchronize README case index
+      run: uv run python scripts/sync_readme.py
+      stage_fixed: true
