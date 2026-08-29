@@ -5,7 +5,7 @@ import pytest
 
 
 SCRIPT = run_path(str(Path(__file__).parents[2] / "scripts" / "sync_readme.py"))
-discover_rows = SCRIPT["discover_rows"]
+compose_case_table = SCRIPT["compose_case_table"]
 synchronize = SCRIPT["synchronize"]
 
 
@@ -46,7 +46,7 @@ def test_synchronize_uses_first_export_and_numeric_order(tmp_path: Path) -> None
     assert synchronize(tmp_path) is True
 
     result = (tmp_path / "README.md").read_text(encoding="utf-8")
-    assert "| case0 | `manual` | Kept manually. | — | — |" in result
+    assert "case0" not in result
     assert "| case2 | `Second` | Second. | — | — |" in result
     assert "| case10 | `Primary` | Tenth. | `case2` | [Guide]" in result
     assert result.index("| case2 |") < result.index("| case10 |")
@@ -71,4 +71,5 @@ def test_missing_exports_fall_back_to_last_class(
 ) -> None:
     add_case(tmp_path, 1, body)
 
-    assert f"| case1 | {'`' if primary != 'N/A' else ''}{primary}" in discover_rows(tmp_path)[0]
+    utility = compose_case_table(tmp_path).rows[0][1]
+    assert utility == (f"`{primary}`" if primary != "N/A" else "N/A")
