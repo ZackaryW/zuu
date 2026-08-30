@@ -65,7 +65,7 @@ wheels = [
 
 [[package]]
 name = "zuu"
-version = "202608.29.0"
+version = "202608.29.1"
 source = { editable = "." }
 
 [package.dev-dependencies]
