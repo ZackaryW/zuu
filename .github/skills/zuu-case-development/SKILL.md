@@ -136,10 +136,37 @@ pytest fixtures such as `tmp_path`. Split modules by public responsibility—for
 example lifecycle, exclusions, storage, or failure recovery—instead of accumulating
 one test file for the whole case. Avoid empty packages and arbitrary one-test files.
 
-Cover the public lifecycle and meaningful failure boundaries, not private line-by-
-line implementation. Include composability tests when the case accepts custom
-protocols or callables. Exercise dependencies through their public APIs and leave
-the depended-on case's own behavior to its focused tests.
+Build a feature-coverage inventory from the accepted contract, the public exports,
+public methods and properties, and the dedicated guide before declaring the tests
+complete. Account for every documented public feature with observable pytest
+coverage. Extensive coverage includes, where applicable:
+
+- the normal lifecycle, return values, ordering, and repeated operation;
+- every public option, policy, mode, strategy, and meaningful combination;
+- empty, missing, malformed, duplicate, stale, unsupported, and unsafe inputs;
+- success and failure state transitions, including rollback and state preservation;
+- callback return propagation, callback failure, and post-callback state;
+- custom protocol, callable, reference, runner, or storage implementations;
+- persistence across fresh public-object instances; and
+- platform-independent path, exclusion, symlink, confinement, and metadata rules.
+
+Use `tmp_path` for every test that creates, reads, replaces, traverses, or otherwise
+depends on filesystem state. Construct the smallest representative tree inside that
+temporary root, including a real temporary Git repository when behavior is delegated
+to Git. Never use the repository working tree, a user folder, or shared machine state
+as a mutable test fixture. Exercise symlink behavior when the platform permits it and
+skip explicitly when it does not.
+
+Do not force a temporary folder onto pure transforms, parsers, selectors, immutable
+models, or callback planners. Test those with deterministic in-memory values and use
+pytest parametrization for behavior matrices and validation families.
+
+Cover public behavior and meaningful failure boundaries, not private line-by-line
+implementation or coverage percentages by themselves. Include composability tests
+when the case accepts custom protocols or callables. Exercise dependencies through
+their public APIs and leave the depended-on case's own behavior to its focused tests.
+A case is not test-complete while a documented public feature lacks a positive test,
+or while a meaningful rejection, mutation, or recovery boundary remains untested.
 
 Select pytest targets from the cases and tooling actually affected by the change.
 Run each changed case's focused directory:
