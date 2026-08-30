@@ -20,3 +20,4 @@ pip install zuu
 | case8 | `LayeredMapping` | Stack configuration like transparent sheets, letting later JSON and typed assignments cover earlier defaults without recursive merging. | — | [Guide](docs/case8/README.md) |
 | case9 | `TemporaryJsonEnvironment` | Hand structured settings to child processes like a temporary luggage locker, using an environment path as the claim ticket and cleaning up afterward. | — | [Guide](docs/case9/README.md) |
 | case10 | `TombstoneOverlay` | Personalize a shared mapping like a correction sheet, overlaying local values and crossed-out keys without changing the original. | — | [Guide](docs/case10/README.md) |
+| case11 | `CliSelector` | Choose CLI values like a station clerk honoring tickets already in hand before opening a live terminal checklist. | — | [Guide](docs/case11/README.md) |
