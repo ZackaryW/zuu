@@ -43,6 +43,19 @@ def test_rejects_a_symbolic_link_inside_a_snapshot(tmp_path):
         capture_snapshot([root])
 
 
+def test_rejects_a_symbolic_link_as_the_snapshot_root(tmp_path):
+    target = tmp_path / "target.txt"
+    target.write_text("target", encoding="utf-8")
+    link = tmp_path / "root.link"
+    try:
+        os.symlink(target, link)
+    except OSError as error:
+        pytest.skip(f"symbolic links are unavailable: {error}")
+
+    with pytest.raises(SnapshotError, match="root is a symbolic link"):
+        capture_snapshot([link])
+
+
 def test_an_excluded_symbolic_link_is_outside_the_snapshot_boundary(tmp_path):
     root = tmp_path / "tree"
     root.mkdir()
@@ -57,3 +70,16 @@ def test_an_excluded_symbolic_link_is_outside_the_snapshot_boundary(tmp_path):
     snapshot = capture_snapshot([root], exclusions=["*.link"])
 
     assert [entry.relative_path for entry in snapshot.entries] == ["."]
+
+
+def test_absolute_exclusion_masks_match_materialized_paths(tmp_path):
+    root = tmp_path / "tree"
+    root.mkdir()
+    kept = root / "kept.txt"
+    ignored = root / "ignored.txt"
+    kept.write_text("kept", encoding="utf-8")
+    ignored.write_text("ignored", encoding="utf-8")
+
+    snapshot = capture_snapshot([root], exclusions=[ignored.resolve().as_posix()])
+
+    assert [entry.relative_path for entry in snapshot.entries] == [".", "kept.txt"]

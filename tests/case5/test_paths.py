@@ -50,6 +50,16 @@ def test_resolve_file_rejects_a_directory(tmp_path: Path) -> None:
         RepositoryPath("src").resolve_file(root)
 
 
+def test_resolve_file_rejects_missing_roots_and_files(tmp_path: Path) -> None:
+    with pytest.raises(RepositoryPathError, match="unavailable"):
+        RepositoryPath("src/app.py").resolve_file(tmp_path / "missing-root")
+
+    root = tmp_path / "repository"
+    root.mkdir()
+    with pytest.raises(RepositoryPathError, match="unavailable"):
+        RepositoryPath("missing.py").resolve_file(root)
+
+
 def test_resolve_file_rejects_a_symlink_escape(tmp_path: Path) -> None:
     root = tmp_path / "repository"
     root.mkdir()
@@ -63,3 +73,22 @@ def test_resolve_file_rejects_a_symlink_escape(tmp_path: Path) -> None:
 
     with pytest.raises(RepositoryPathError, match="escapes"):
         RepositoryPath("linked.txt").resolve_file(root)
+
+
+def test_resolve_file_accepts_a_symlink_confined_to_the_root(tmp_path: Path) -> None:
+    root = tmp_path / "repository"
+    root.mkdir()
+    target = root / "target.txt"
+    target.write_text("inside", encoding="utf-8")
+    link = root / "linked.txt"
+    try:
+        link.symlink_to(target)
+    except OSError as error:
+        pytest.skip(f"symlinks are unavailable: {error}")
+
+    assert RepositoryPath("linked.txt").resolve_file(root) == target.resolve()
+
+
+def test_repository_path_requires_a_string() -> None:
+    with pytest.raises(RepositoryPathError, match="must be a string"):
+        RepositoryPath(42)  # type: ignore[arg-type]
