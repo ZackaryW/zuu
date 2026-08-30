@@ -1,5 +1,11 @@
 # zuu
 
+## Install
+```bash
+pip install zuu
+```
+
+
 ## Cases
 
 | Case | Utility | Purpose | Depends on | Documentation |
