@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zuu Find Case"
+  short_description: "Match consumer needs to existing zuu cases"
+  default_prompt: "Use $zuu-find-case to recommend the smallest existing zuu case or composition for my Python utility need."
