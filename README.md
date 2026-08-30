@@ -11,3 +11,6 @@
 | case5 | `RepositoryPath` | Make repository-relative path selection safe and predictable across platforms. | — | [Guide](docs/case5/README.md) |
 | case6 | `AffectedTargets` | Choose the smallest declared target set that safely covers changed repository paths. | `case5` | [Guide](docs/case6/README.md) |
 | case7 | `ProjectionPlan` | Plan updates to managed outputs without overwriting unowned or locally changed content. | — | [Guide](docs/case7/README.md) |
+| case8 | `LayeredMapping` | Stack configuration like transparent sheets, letting later JSON and typed assignments cover earlier defaults without recursive merging. | — | [Guide](docs/case8/README.md) |
+| case9 | `TemporaryJsonEnvironment` | Hand structured settings to child processes like a temporary luggage locker, using an environment path as the claim ticket and cleaning up afterward. | — | [Guide](docs/case9/README.md) |
+| case10 | `TombstoneOverlay` | Personalize a shared mapping like a correction sheet, overlaying local values and crossed-out keys without changing the original. | — | [Guide](docs/case10/README.md) |
