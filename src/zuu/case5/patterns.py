@@ -8,9 +8,9 @@ from pathlib import PurePosixPath
 WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:")
 
 
-def normalize_relative(value: str) -> str:
+def normalize_relative(value: str, *, label: str = "repository path") -> str:
     if not isinstance(value, str):
-        raise TypeError("repository path must be a string")
+        raise TypeError(f"{label} must be a string")
     if (
         not value
         or "\x00" in value
@@ -18,14 +18,14 @@ def normalize_relative(value: str) -> str:
         or value.startswith("/")
         or WINDOWS_DRIVE.match(value)
     ):
-        raise ValueError(f"invalid repository path: {value!r}")
+        raise ValueError(f"invalid {label}: {value!r}")
     path = PurePosixPath(value)
     if (
         path.as_posix() != value
         or value == "."
         or any(part == ".." for part in path.parts)
     ):
-        raise ValueError(f"invalid repository path: {value!r}")
+        raise ValueError(f"invalid {label}: {value!r}")
     return path.as_posix()
 
 
