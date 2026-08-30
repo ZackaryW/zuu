@@ -41,3 +41,24 @@ def test_find_requires_one_exact_heading_match() -> None:
 
     with pytest.raises(MarkdownTableError, match="found 0"):
         MarkdownTable.find(document, ("Missing",))
+
+
+def test_extraction_accepts_alignment_markers_and_a_table_without_rows() -> None:
+    document = "| Left | Right |\n|:-----|------:|\n"
+
+    table = MarkdownTable.find(document, ("Left", "Right"))
+
+    assert table.rows == ()
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "Name | Value\n-----|------\na | b\n",
+        "| Name | Value |\n| --- |\n| a | b |\n",
+        "| Name |\n| -- |\n| a |\n",
+        "| Name |\n| text |\n| a |\n",
+    ],
+)
+def test_extraction_ignores_unsupported_table_shapes(document: str) -> None:
+    assert MarkdownTable.find_all(document) == ()

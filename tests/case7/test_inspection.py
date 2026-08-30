@@ -70,6 +70,31 @@ def test_invalid_inspection_state_is_blocked() -> None:
     assert action.detail == "inspector returned invalid state: 'current'"
 
 
+def test_failed_inspection_does_not_prevent_later_inspections() -> None:
+    calls: list[str] = []
+
+    def fail() -> ProjectionState:
+        calls.append("failed")
+        raise OSError("unreadable")
+
+    def succeed() -> ProjectionState:
+        calls.append("current")
+        return ProjectionState.CURRENT
+
+    plan = ProjectionPlan(
+        [
+            ManagedProjection("failed", fail),
+            ManagedProjection("current", succeed),
+        ]
+    )
+
+    assert calls == ["failed", "current"]
+    assert [action.state for action in plan.actions] == [
+        ProjectionState.FAILED,
+        ProjectionState.CURRENT,
+    ]
+
+
 def test_empty_plan_is_rejected() -> None:
     with pytest.raises(ProjectionPlanError, match="at least one managed projection"):
         ProjectionPlan([])

@@ -47,3 +47,18 @@ def test_unknown_path_conservatively_selects_every_target() -> None:
 
 def test_invalid_path_conservatively_selects_every_target() -> None:
     assert selector().select(("../outside.py",)) == selector().targets
+
+
+def test_one_invalid_or_uncovered_path_discards_partial_selection() -> None:
+    targets = selector()
+
+    assert targets.select(("src/core/model.py", "README.md")) == targets.targets
+    assert targets.select(("src/core/model.py", "../outside.py")) == targets.targets
+
+
+def test_changed_path_generators_are_consumed_once() -> None:
+    paths = (path for path in ("docs/guide.md", "src/workflow/state.py"))
+
+    selected = selector().select(paths)
+
+    assert tuple(target.name for target in selected) == ("workflow", "docs")

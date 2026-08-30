@@ -37,3 +37,15 @@ def test_selector_requires_unique_nonempty_targets() -> None:
         AffectedTargets(())
     with pytest.raises(AffectedTargetsError, match="duplicate"):
         AffectedTargets((target, target))
+
+
+def test_definitions_accept_generators_without_losing_order() -> None:
+    target = AffectedTarget(
+        "core",
+        "value",
+        (pattern for pattern in ("src/**", "tests/**")),
+    )
+    selector = AffectedTargets(target for target in (target,))
+
+    assert selector.targets == (target,)
+    assert [pattern.pattern for pattern in target.patterns] == ["src/**", "tests/**"]

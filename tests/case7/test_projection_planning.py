@@ -94,3 +94,20 @@ def test_plan_without_blockers_is_ok() -> None:
 
     assert plan.ok
     assert plan.blocked == ()
+
+
+def test_force_change_summary_includes_refresh_and_repair() -> None:
+    plan = ProjectionPlan(
+        [
+            projection(ProjectionState.CURRENT),
+            projection(ProjectionState.MODIFIED, repairable=True),
+            projection(ProjectionState.UNMANAGED),
+        ],
+        force=True,
+    )
+
+    assert [action.decision for action in plan.changes] == [
+        ProjectionDecision.UPDATE,
+        ProjectionDecision.REPAIR,
+    ]
+    assert plan.ok

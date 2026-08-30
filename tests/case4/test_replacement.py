@@ -74,3 +74,25 @@ def test_replace_preserves_crlf_table_line_endings() -> None:
     updated = current.replace_in(document, MarkdownTable(("Name",), (("new",),)))
 
     assert updated == "| Name |\r\n|------|\r\n| new |\r\n"
+
+
+def test_replacement_requires_the_same_ordered_headings() -> None:
+    document = "| Name | Value |\n|------|-------|\n| old | value |\n"
+    current = MarkdownTable.find(document, ("Name", "Value"))
+
+    with pytest.raises(MarkdownTableError, match="headings do not match"):
+        current.replace_in(document, MarkdownTable(("Value", "Name")))
+
+
+def test_exclusion_takes_precedence_over_preservation() -> None:
+    document = "| Name |\n|------|\n| manual |\n"
+    current = MarkdownTable.find(document, ("Name",))
+
+    updated = current.replace_in(
+        document,
+        MarkdownTable(("Name",), (("generated",),)),
+        preserve=lambda row: row["Name"] == "manual",
+        exclude=lambda row: row["Name"] == "manual",
+    )
+
+    assert updated == "| Name |\n|------|\n| generated |\n"
