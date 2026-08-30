@@ -5,6 +5,13 @@
 pip install zuu
 ```
 
+## Release behavior
+
+Versions use a month-led form such as `202608.29.1`, where the first component
+identifies the release month. A push to `main` publishes to PyPI automatically
+only when that component changes, such as from `202608` to `202609`. Changes to
+the remaining components within the same month do not publish automatically.
+The publish workflow can still be run manually for any version.
 
 ## Cases
 

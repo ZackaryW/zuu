@@ -12,7 +12,7 @@ on:
     branches:
       - main
     paths:
-      - uv.lock
+      - pyproject.toml
   workflow_dispatch:
 
 permissions:
@@ -29,21 +29,59 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      - name: Check for major version change
+        id: version
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          import tomllib
+
+          with open("pyproject.toml", "rb") as file:
+              current = tomllib.load(file)["project"]["version"]
+
+          if os.environ["EVENT_NAME"] == "workflow_dispatch":
+              previous = "manual"
+              publish = True
+          else:
+              text = subprocess.check_output(
+                  ["git", "show", f"{os.environ['BEFORE_SHA']}:pyproject.toml"],
+                  text=True,
+              )
+              previous = tomllib.loads(text)["project"]["version"]
+              publish = current.split(".", 1)[0] != previous.split(".", 1)[0]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"publish={str(publish).lower()}\n")
+
+          print(f"Previous version: {previous}")
+          print(f"Current version:  {current}")
+          print(f"Publish:          {publish}")
+          PY
+
       - name: Install uv
+        if: steps.version.outputs.publish == 'true'
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
 
       - name: Build package
+        if: steps.version.outputs.publish == 'true'
         run: uv build
 
       - name: Publish to PyPI with OIDC
+        if: steps.version.outputs.publish == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
