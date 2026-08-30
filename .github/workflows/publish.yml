@@ -1,0 +1,49 @@
+# Publish with a PyPI trusted publisher configured for:
+#   project: zuu
+#   owner: ZackaryW
+#   repository: zuu
+#   workflow: publish.yml
+#   environment: unset
+
+name: Publish to PyPI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - uv.lock
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-pypi
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI with OIDC
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
