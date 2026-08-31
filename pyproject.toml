@@ -1,6 +1,6 @@
 [project]
 name = "zuu"
-version = "202608.30.1"
+version = "202608.31.0"
 description = "zack's useful utilities that only uses stdlib"
 readme = "README.md"
 authors = [
