@@ -137,7 +137,9 @@ The controls are:
 
 Checked results are returned in declared choice order, regardless of the order in
 which they were toggled. The active menu is repainted in place and collapses to a
-one-line outcome after confirmation or cancellation.
+one-line outcome after confirmation or cancellation. Long prompts, choices, and
+validation messages are explicitly wrapped to the output terminal width; repainting
+tracks those physical rows so moving the pointer does not leave earlier copies behind.
 
 ## Try the real terminal experience
 

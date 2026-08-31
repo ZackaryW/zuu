@@ -10,7 +10,7 @@ from zuu.case11.terminal import AnsiRenderer, CLEAR_LINE
 
 def test_renderer_draws_highlight_checks_and_instruction() -> None:
     stream = StringIO()
-    renderer = AnsiRenderer(stream, "Configure agents", ("Codex", "Pi"))
+    renderer = AnsiRenderer(stream, "Configure agents", ("Codex", "Pi"), columns=200)
     state = CheckboxState(2, selected={0})
 
     renderer.render(state)
@@ -27,7 +27,7 @@ def test_renderer_draws_highlight_checks_and_instruction() -> None:
 
 def test_renderer_repaints_owned_lines_instead_of_appending_visually() -> None:
     stream = StringIO()
-    renderer = AnsiRenderer(stream, "Choose", ("One", "Two"))
+    renderer = AnsiRenderer(stream, "Choose", ("One", "Two"), columns=200)
     state = CheckboxState(2)
     renderer.render(state)
 
@@ -41,9 +41,32 @@ def test_renderer_repaints_owned_lines_instead_of_appending_visually() -> None:
     assert f"{CLEAR_LINE}» ◉ Two\n" in second_frame
 
 
+def test_renderer_repaints_every_physical_row_of_a_wrapped_prompt() -> None:
+    stream = StringIO()
+    renderer = AnsiRenderer(
+        stream,
+        "Select agent integrations",
+        ("Claude", "Codex", "Kimi", "Pi"),
+        columns=100,
+    )
+    state = CheckboxState(4)
+    renderer.render(state)
+
+    assert renderer.height == 7
+    assert stream.getvalue().count("\n") == 7
+
+    state.apply(Action.DOWN)
+    first_frame_length = len(stream.getvalue())
+    renderer.render(state)
+
+    second_frame = stream.getvalue()[first_frame_length:]
+    assert second_frame.startswith("\x1b[7A")
+    assert second_frame.count("\n") == 7
+
+
 def test_renderer_shows_and_clears_required_validation() -> None:
     stream = StringIO()
-    renderer = AnsiRenderer(stream, "Choose", ("One",))
+    renderer = AnsiRenderer(stream, "Choose", ("One",), columns=200)
     state = CheckboxState(1, required=True)
 
     state.apply(Action.SUBMIT)
@@ -68,7 +91,7 @@ def test_finish_collapses_to_one_outcome_line(
     selected: set[int], cancelled: bool, answer: str
 ) -> None:
     stream = StringIO()
-    renderer = AnsiRenderer(stream, "Choose", ("One", "Two"))
+    renderer = AnsiRenderer(stream, "Choose", ("One", "Two"), columns=200)
     state = CheckboxState(2, selected=selected)
     renderer.render(state)
     state.done = True
