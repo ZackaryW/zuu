@@ -28,3 +28,4 @@ The publish workflow can still be run manually for any version.
 | case9 | `TemporaryJsonEnvironment` | Hand structured settings to child processes like a temporary luggage locker, using an environment path as the claim ticket and cleaning up afterward. | — | [Guide](docs/case9/README.md) |
 | case10 | `TombstoneOverlay` | Personalize a shared mapping like a correction sheet, overlaying local values and crossed-out keys without changing the original. | — | [Guide](docs/case10/README.md) |
 | case11 | `CliSelector` | Choose CLI values like a station clerk honoring tickets already in hand before opening a live terminal checklist. | — | [Guide](docs/case11/README.md) |
+| case12 | `GitHubSubpath` | Synchronize an owned directory from a public GitHub repository subpath, using its resolved commit as the cache marker. | `case5` | [Guide](docs/case12/README.md) |
