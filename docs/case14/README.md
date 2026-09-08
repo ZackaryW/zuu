@@ -114,6 +114,24 @@ every valid pubspec spelling.
 
 ## Tests
 
+The larger, fictional samples are available as readable YAML files:
+
+| Sample | Coverage |
+|--------|----------|
+| [Application pubspec](../../tests/case14/samples/application_pubspec.yaml) | Dependencies, fonts, assets, nested lists, and mixed scalar values across 131 lines. |
+| [Mixed configuration](../../tests/case14/samples/mixed_configuration.yaml) | 115 lines combining parsed fields with opaque blocks, flow collections, anchors, tags, and multiline quotes. |
+| [Service configuration](../../tests/case14/samples/service_configuration.yaml) | 100 lines of listeners, routes, storage, retries, logging, and feature settings. |
+| [Inventory sequence](../../tests/case14/samples/inventory_sequence.yaml) | An 89-line root list containing contacts, bins, items, matrices, and audit records. |
+
+Tests compare each entire parsed tree with an independently specified expected
+result, through both `loads` and `load`, with LF and CRLF inputs. They also check
+that file reads leave the source unchanged and that errors after large valid
+sections retain their source line numbers.
+
+Generated samples exercise a 4,507-line configuration, a 4,800-line root sequence
+with 600 independent records, and 40 nested mapping/list pairs with siblings at
+every level. These are correctness checks, not timing benchmarks.
+
 ```powershell
 uv run pytest -q tests/case14
 ```

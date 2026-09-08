@@ -1,0 +1,89 @@
+# A sequence is the document root; each record has independent nested sections.
+- id: north_depot
+  title: North depot
+  active: true
+  coordinates:
+    latitude: 51.5
+    longitude: -0.12
+  contacts:
+    - name: Alex
+      roles:
+        - manager
+        - receiving
+      channels:
+        email: alex@example.test
+        phone: '+44 000 000 000'
+    - name: Sam
+      roles:
+        - dispatch
+      channels: {}
+  bins:
+    - label: A-01
+      capacity: 100
+      items:
+        - sku: '00123'
+          count: 12
+          unit_price: 4.5
+          flags: []
+        - sku: cable_blue
+          count: 0
+          unit_price: 0.75
+          flags:
+            - reorder
+    - label: A-02
+      capacity: 50
+      items: []
+  transfer_costs:
+    - - 0
+      - 2.5
+    - - 2.5
+      - 0
+  note: >-
+    Loading bay opens at 08:00.
+    Use entrance B: the west gate is closed.
+  audit:
+    last_count: 2026-09-01
+    approved: true
+    exception: null
+
+- id: south_depot
+  title: 'South: receiving'
+  active: false
+  coordinates:
+    latitude: -33.9
+    longitude: 18.4
+  contacts: []
+  bins:
+    - label: B-01
+      capacity: 200
+      items:
+        - sku: panel
+          count: 25
+          unit_price: 19.95
+          flags:
+            - fragile
+            - indoors
+  transfer_costs: []
+  note: "Renovation #2"
+  audit:
+    last_count: null
+    approved: false
+    exception: {reason: renovation, review: pending}
+
+- id: mobile_unit
+  title: Mobile unit
+  active: true
+  coordinates: null
+  contacts:
+    - name: Lee
+      roles:
+        - driver
+      channels:
+        radio: dispatch://channel/7#mobile
+  bins: []
+  transfer_costs: []
+  note: ''
+  audit:
+    last_count: 2026-09-07
+    approved: true
+    exception: null

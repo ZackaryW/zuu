@@ -1,0 +1,131 @@
+# Fictional application: block structures commonly found in pubspec.yaml.
+name: trail_atlas
+version: 2.4.1+37
+description: Maps, field notes, and offline routes for walking trips.
+publish_to: 'none'
+homepage: https://example.test/trail-atlas
+repository: https://example.test/source/trail-atlas#main
+issue_tracker: https://example.test/source/trail-atlas/issues
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.16.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  atlas_network: ^2.1.0
+  atlas_storage: ^3.0.2
+  atlas_logging: any
+  atlas_models:
+    path: ../atlas_models
+  atlas_widgets:
+    git:
+      url: https://example.test/source/widgets.git
+      ref: stable
+      path: packages/widgets
+  atlas_tiles:
+    hosted:
+      name: atlas_tiles
+      url: https://packages.example.test
+    version: ^1.5.0
+  atlas_optional:
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  atlas_lints: ^1.0.0
+  atlas_codegen:
+    path: tools/codegen
+dependency_overrides:
+  atlas_storage:
+    path: ../storage_patch
+
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/images/
+    - assets/icons/compass.png
+    - assets/maps/europe.json
+    - assets/maps/asia.json
+    - assets/data/places.csv
+    - 'assets/labels/route #1.txt'
+    - assets/legal/privacy.txt
+    - assets/audio/arrival.wav
+  shaders:
+    - shaders/terrain.frag
+    - shaders/water.frag
+  fonts:
+    - family: Atlas Sans
+      fonts:
+        - asset: fonts/AtlasSans-Regular.ttf
+          weight: 400
+        - asset: fonts/AtlasSans-Bold.ttf
+          weight: 700
+        - asset: fonts/AtlasSans-Italic.ttf
+          style: italic
+    - family: Atlas Mono
+      fonts:
+        - asset: fonts/AtlasMono-Regular.ttf
+        - asset: fonts/AtlasMono-Medium.ttf
+          weight: 500
+  deferred-components:
+    - name: mountain_maps
+      libraries:
+        - package:trail_atlas/mountains.dart
+        - package:trail_atlas/elevation.dart
+      assets:
+        - assets/maps/mountains/
+    - name: coastal_maps
+      libraries:
+        - package:trail_atlas/coasts.dart
+      assets: []
+
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
+  web:
+topics:
+  - maps
+  - walking
+  - offline
+screenshots:
+  - description: 'Map: mountain trails'
+    path: screenshots/mountains.png
+  - description: "Day's notes #2"
+    path: screenshots/notes.png
+funding:
+  - https://example.test/sponsor
+  - https://example.test/donate#atlas
+executables:
+  atlas_import: import_routes
+  atlas_inspect:
+
+# App-owned settings also exercise mixed scalars and nested list boundaries.
+atlas_settings:
+  enabled: true
+  telemetry: false
+  retries: 3
+  timeout: 2.5
+  title: 'Explorer''s atlas'
+  empty_label: ''
+  cache: {}
+  fallback: null
+  matrix:
+    - - 1
+      - 2
+    - - 3
+      - 4
+  labels:
+    '123': numeric-looking key
+    'a:b': colon key
+    release.channel: stable
+    '': empty key
+final_marker: complete

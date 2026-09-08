@@ -1,0 +1,115 @@
+# Fictional configuration with opaque values between readable siblings.
+name: field_station
+description: >- # keep folded text uninterpreted
+  Collect observations from remote stations.
+  Text can contain keys: values, # signs, and an unmatched ' quote.
+
+  This paragraph belongs to the same description.
+version: 5.2.0+11
+environment:
+  sdk: '^3.2.0'
+dependencies:
+  station_core: ^1.0.0
+  station_protocol:
+    path: ../protocol
+
+station_defaults: &defaults
+  retries: 3
+  options:
+    transport: radio
+    # Opaque bodies are not traversed as mappings.
+    channels: [north, south]
+station_profile:
+  <<: *defaults
+  name: alpine
+  enabled: true
+  location: !coordinates 45.2, 6.1
+  altitude: 2100
+
+routes:
+  - name: primary
+    options: {retries: 3, timeout: 1.5}
+    enabled: true
+    labels: [uplink, "payload ] intact", 'operator''s {notes}']
+    target: radio://north.example.test/channel#main
+  - name: secondary
+    options: {
+      retries: 5,
+      nested: [one, {message: "a } bracket"}], # comment contains ] }
+      quoted: 'it''s still inside'
+    }
+    enabled: false
+    labels: []
+    target: radio://south.example.test/channel
+  - name: manual
+    instructions: |-
+      Step 1: attach the antenna.
+      # This line belongs to the instructions.
+      - This dash is text, not a list item.
+      Step 2: select a station.
+    enabled: true
+    target: manual
+
+display:
+  title: "Field\nStation"
+  subtitle: 'Operator''s console'
+  notice: "First line of an opaque quoted value
+    second line with a # and a ] character"
+  theme: dark
+  footnote: 'Another multiline
+    value with doubled '' apostrophes'
+  show_clock: true
+  unicode_escape: "\N\x41"
+  refresh_seconds: 1.25
+
+diagnostics:
+  mask: 0xFF
+  unlimited: .inf
+  missing: .NaN
+  attempts: 0
+  enabled: false
+  last_error: null
+  message: no
+
+pipeline:
+  - stage: receive
+    transforms:
+      - [strip, normalize]
+      - name: decode
+        settings: !decoder
+          format: station-v2
+          headers: [timestamp, payload]
+        strict: true
+    next: validate
+  - stage: validate
+    rules:
+      - name: range
+        minimum: -12.5
+        maximum: 1e3
+      - name: quality
+        allowed: [good, excellent]
+        required: true
+    next: store
+  - stage: store
+    rules: []
+    next: null
+
+documents:
+  - |+
+    First document.
+
+    Last paragraph.
+  - label: index
+    body: >
+      An opaque body nested in a compact mapping.
+      The sibling key remains readable.
+    revision: 2
+  - finished
+summary:
+  station_count: 3
+  route_names:
+    - primary
+    - secondary
+    - manual
+  metadata: {}
+final_marker: complete

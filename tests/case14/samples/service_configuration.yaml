@@ -1,0 +1,100 @@
+# General application configuration, unrelated to Dart or Flutter.
+application:
+  name: observation_gateway
+  display_name: 'Observer''s gateway'
+  revision: 12
+  enabled: true
+  maintenance: false
+  banner: "Welcome\nChoose a station"
+  empty_message: ''
+  started_at: 2026-09-08
+
+listeners:
+  - name: public
+    address: 0.0.0.0
+    port: 8080
+    tls:
+      enabled: false
+      certificate: null
+    headers:
+      'X-Trace:Mode': verbose
+      Cache-Control: no-cache
+    routes:
+      - path: /health
+        methods:
+          - GET
+        timeout: .5
+      - path: /observations
+        methods:
+          - GET
+          - POST
+        timeout: 2e1
+  - name: admin
+    address: 127.0.0.1
+    port: 9090
+    tls:
+      enabled: true
+      certificate: /etc/gateway/admin.pem
+    headers: {}
+    routes: []
+
+storage:
+  primary:
+    host: database.internal
+    port: 5432
+    database: observations
+    credentials:
+      username: service_account
+      password: !env GATEWAY_PASSWORD
+    pool:
+      minimum: 2
+      maximum: 24
+      idle_seconds: 30.0
+  replicas:
+    - host: replica_a.internal
+      weight: 2
+    - host: replica_b.internal
+      weight: 1
+  cache:
+    backend: memory
+    capacity: 4096
+    prefix: gateway:v2
+
+retry:
+  attempts: 4
+  delays:
+    - .25
+    - .5
+    - 1.0
+    - 2.0
+  jitter: true
+  status_codes: [429, 502, 503]
+logging:
+  level: info
+  sinks:
+    - kind: stderr
+      format: text
+    - kind: file
+      filename: /var/log/gateway.log
+      rotate:
+        count: 7
+        size: 1048576
+  template: |-
+    timestamp: ${timestamp}
+    message: ${message}
+    # Preserve this template line.
+  include_source: false
+
+features:
+  'true': boolean-looking string key
+  '01': numeric-looking string key
+  sensor.v2: true
+  optional:
+  labels:
+    - alpha
+    - 'route #3'
+    - 'value: with a colon'
+shutdown:
+  grace_seconds: 5
+  drain: true
+  hook: null
