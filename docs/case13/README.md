@@ -1,16 +1,17 @@
 # case13: Deep key traversal
 
-`case13` reads and writes nested values using an explicit path of keys and an
-access policy. It is standalone and uses only the Python standard library.
+`case13` reads, checks, initializes, updates, and removes nested values using an
+explicit path of keys and an access policy. It is standalone and uses only the
+Python standard library.
 
 ## Access policies
 
-Both functions accept a keyword-only `policy=` argument:
+All six functions accept a keyword-only `policy=` argument:
 
 | Policy | Behavior at each path component |
 |--------|---------------------------------|
-| `AccessPolicy.ITEM` (default) | Use `current[key]` and item assignment. |
-| `AccessPolicy.ATTRIBUTE` | Use `getattr(current, key)` and `setattr(current, key, value)`. |
+| `AccessPolicy.ITEM` (default) | Use `current[key]`, item assignment, and item deletion. |
+| `AccessPolicy.ATTRIBUTE` | Use `getattr`, `setattr`, and `delattr`. |
 | `AccessPolicy.AUTO` | Use item access for `collections.abc.Mapping` and `Sequence` instances; use attributes for other objects. |
 
 The lowercase strings `"item"`, `"attribute"`, and `"auto"` are also accepted.
@@ -135,6 +136,99 @@ Existing intermediate values are never replaced automatically. For example,
 `None` with a dictionary. Lists are not grown, padded, or appended automatically;
 out-of-range indexes raise `IndexError`.
 
+## Check whether a path exists
+
+```python
+from zuu.case13 import deep_has
+
+data = {"user": {"email": None}}
+assert deep_has(data, ["user", "email"])
+assert not deep_has(data, ["user", "missing"])
+assert deep_has(data, [])
+```
+
+`deep_has(obj, keys)` returns a boolean using the same lookup rules as `deep_get`.
+An existing falsey value is present. Missing keys, indexes, or attributes return
+`False` according to the selected policy. Unsupported operations, type errors,
+and exceptions from the wrong access protocol propagate. The empty path always
+exists, even when the root is `None`. Custom getters can still have side effects.
+
+## Remove and return a value
+
+```python
+from zuu.case13 import deep_pop
+
+data = {"user": {"email": "ada@example.test"}, "values": [1, 2, 3]}
+assert deep_pop(data, ["user", "email"]) == "ada@example.test"
+assert data["user"] == {}
+assert deep_pop(data, ["user", "email"], default=None) is None
+assert deep_pop(data, ["values", -2]) == 2
+assert data["values"] == [1, 3]
+```
+
+`deep_pop(obj, keys, default=...)` reads and deletes the leaf, returning the read
+value by reference. It leaves parent containers in place and never creates
+missing parents. A missing lookup at any depth returns the supplied default or
+raises its normal missing exception. Deletion errors propagate even when a
+default is supplied: a readable value on a read-only container is not absent.
+
+Item deletion uses `del parent[key]`; removing a list element shifts the later
+indexes. Attribute deletion uses `delattr`, including property deleters and
+normal slot behavior. An empty path raises `ValueError`.
+
+## Initialize only when missing
+
+```python
+from zuu.case13 import deep_setdefault
+
+data = {}
+tags = deep_setdefault(data, ["user", "tags"], [])
+tags.append("staff")
+assert deep_setdefault(data, ["user", "tags"], ["unused"]) is tags
+assert data == {"user": {"tags": ["staff"]}}
+```
+
+`deep_setdefault(obj, keys, default=None, nullobject=...)` returns the existing
+leaf without overwriting it, including falsey values. If the leaf is missing,
+it stores and returns the supplied `default` by reference. No write is attempted
+for an existing leaf, so that case works on a read-only container.
+
+Missing intermediate components use the same independent copied templates and
+staged attachment as `deep_set`. If a copied template already provides the leaf,
+that template value is retained and returned. An unused template is never copied.
+Normal container lookup behavior still applies: a `defaultdict` can supply its
+own value before this function sees a missing key.
+
+Empty paths raise `ValueError`. List indexes must already be in range; neither
+missing intermediate indexes nor an out-of-range leaf cause automatic list growth.
+This is a convenience operation, not an atomic concurrent initialization primitive.
+
+## Transform an existing value
+
+```python
+from zuu.case13 import deep_update
+
+data = {"stats": {"visits": 4}}
+assert deep_update(data, ["stats", "visits"], lambda count: count + 1) == 5
+assert data["stats"]["visits"] == 5
+```
+
+`deep_update(obj, keys, transform)` resolves the parent and reads the existing
+leaf once, calls `transform(value)` once, assigns its result, and returns that
+result by reference. If a property setter normalizes the value, the return value
+is still the callback result, rather than a second read of the property.
+
+Missing paths raise without calling the transform or creating containers.
+The transform must be callable; invalid transforms raise `TypeError` before path
+consumption. Empty paths raise `ValueError`. Callback exceptions propagate, and
+assignment is attempted only after the callback returns successfully. An assignment
+failure propagates after the callback has run.
+
+The callback receives the actual stored value. Any mutation it performs on that
+value or other objects persists even if it later raises. If the callback changes
+the path's ancestry, assignment still targets the originally resolved parent.
+There is no concurrency or rollback guarantee for callbacks or custom setters.
+
 ## Key paths and supported containers
 
 Paths may be lists, tuples, or other iterables, including generators. The path is
@@ -147,9 +241,10 @@ expansion. Traversal is iterative and does not consume recursion depth per key.
 Dictionary keys, list indexes, and tuple indexes can be mixed, including negative
 sequence indexes. Containers determine which key types are valid. Any custom
 object implementing item access can participate, such as `collections.UserDict`.
-Item-mode writes additionally require item assignment on the container being changed.
+Item-mode writes and deletions additionally require item assignment or deletion
+on the container being changed.
 Read-only mappings and tuples can be traversed to reach mutable children, but
-cannot themselves receive an assignment.
+cannot themselves receive an assignment or deletion.
 
 Under `ATTRIBUTE`, each path component must be a string naming a single attribute.
 Names remain literal: `["a.b"]` addresses one attribute named `a.b`, rather than
@@ -168,12 +263,14 @@ assert data == {"group": [{"name": "Ada"}]}
 ## Failure and mutation behavior
 
 New branches are built separately and attached at the first missing key only
-after the final assignment succeeds. With ordinary containers, a copy failure,
+after the leaf is assigned or `deep_setdefault` finds it in the copied template.
+With ordinary containers, a copy failure,
 invalid later key, or unusable template therefore does not leave a partially
 created branch in the original object.
 
 Container and copy exceptions propagate normally. Custom `__getitem__`,
-`__setitem__`, `__getattr__`, `__setattr__`, property accessors, and `__deepcopy__`
+`__setitem__`, `__delitem__`, `__getattr__`, `__setattr__`, `__delattr__`, property
+accessors, and `__deepcopy__`
 methods retain their own side effects; these functions do not provide transaction
 rollback for arbitrary user code. This
 also means a `defaultdict` lookup can create its own default before Case 13

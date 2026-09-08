@@ -8,7 +8,15 @@ from zuu.case13 import deep_get
 
 
 def test_case13_metadata_and_exports() -> None:
-    assert case13.__all__ == ["deep_get", "deep_set", "AccessPolicy"]
+    assert case13.__all__ == [
+        "deep_get",
+        "deep_set",
+        "deep_has",
+        "deep_pop",
+        "deep_setdefault",
+        "deep_update",
+        "AccessPolicy",
+    ]
     assert case13.__depends__ == ()
     assert "key paths" in case13.__purpose__
 
