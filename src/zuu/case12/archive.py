@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import stat
 from pathlib import Path
@@ -10,13 +11,16 @@ from zipfile import BadZipFile, ZipFile, ZipInfo
 
 from zuu.case5 import RepositoryPath
 
-from . import GitHubSubpathError
+from . import GitHubSubpathError, _FILTER_MARKER
 
 
 def materialize_subpath(
     archive_path: Path,
     source: RepositoryPath,
     destination: Path,
+    *,
+    include: tuple[re.Pattern[str], ...] = (),
+    exclude: tuple[re.Pattern[str], ...] = (),
 ) -> None:
     """Materialize one safe directory subtree without extracting other entries."""
     try:
@@ -29,6 +33,14 @@ def materialize_subpath(
                 )
             prefix = (next(iter(roots)), *source.parts)
             selected = _selected_entries(entries, prefix)
+            _validate_entries(selected)
+            if include or exclude:
+                selected = tuple(
+                    (relative, info)
+                    for relative, info in selected
+                    if not info.is_dir()
+                    and _matches("/".join(relative), include, exclude)
+                )
             destination.mkdir()
             _write_entries(archive, selected, destination)
     except GitHubSubpathError:
@@ -58,25 +70,46 @@ def _selected_entries(
     return tuple(selected)
 
 
+def _matches(
+    path: str,
+    include: tuple[re.Pattern[str], ...],
+    exclude: tuple[re.Pattern[str], ...],
+) -> bool:
+    return (
+        not include or any(pattern.search(path) for pattern in include)
+    ) and not any(pattern.search(path) for pattern in exclude)
+
+
+def _validate_entries(
+    entries: tuple[tuple[tuple[str, ...], ZipInfo], ...],
+) -> None:
+    seen: dict[tuple[str, ...], bool] = {}
+    for relative, info in entries:
+        canonical = tuple(os.path.normcase(part) for part in relative)
+        if canonical in seen:
+            raise GitHubSubpathError(
+                f"GitHub source contains a colliding path: {'/'.join(relative)}"
+            )
+        seen[canonical] = info.is_dir()
+        if canonical[0] in {".commit", _FILTER_MARKER}:
+            raise GitHubSubpathError(
+                f"GitHub source uses the reserved top-level {relative[0]} path"
+            )
+        _validate_kind(info, relative)
+    for relative in seen:
+        for length in range(1, len(relative)):
+            if seen.get(relative[:length]) is False:
+                raise GitHubSubpathError(
+                    f"GitHub source contains a file/directory conflict: {'/'.join(relative)}"
+                )
+
+
 def _write_entries(
     archive: ZipFile,
     entries: tuple[tuple[tuple[str, ...], ZipInfo], ...],
     destination: Path,
 ) -> None:
-    seen: set[str] = set()
     for relative, info in entries:
-        canonical = os.path.normcase("/".join(relative))
-        if canonical in seen:
-            raise GitHubSubpathError(
-                f"GitHub source contains a colliding path: {'/'.join(relative)}"
-            )
-        seen.add(canonical)
-        if relative[0] == ".commit":
-            raise GitHubSubpathError(
-                "GitHub source uses the reserved top-level .commit path"
-            )
-        _validate_kind(info, relative)
-
         target = destination.joinpath(*relative)
         if info.is_dir():
             target.mkdir(parents=True, exist_ok=True)
