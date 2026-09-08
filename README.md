@@ -31,3 +31,4 @@ The publish workflow can still be run manually for any version.
 | case12 | `GitHubSubpath` | Synchronize an owned directory from a public GitHub repository subpath, using its resolved commit as the cache marker. | `case5` | [Guide](docs/case12/README.md) |
 | case13 | `deep_get` | Read, initialize, update, and remove nested values using item or attribute key paths. | — | [Guide](docs/case13/README.md) |
 | case14 | `loads` | Read simple YAML configuration with nested mappings, lists, and scalar values. | — | [Guide](docs/case14/README.md) |
+| case15 | `check_version` | Check cached GitHub configuration values for selected version changes. | `case13`, `case14` | [Guide](docs/case15/README.md) |
