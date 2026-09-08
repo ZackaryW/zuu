@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
+import stat
 import tempfile
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -19,6 +22,7 @@ __depends__ = ("case5",)
 
 Pathish = str | os.PathLike[str]
 _COMMIT = re.compile(r"[0-9a-fA-F]{40}")
+_FILTER_MARKER = ".zuu-filters.json"
 
 
 class GitHubSubpathError(ValueError):
@@ -59,13 +63,25 @@ class GitHubSyncResult:
 
 @dataclass(frozen=True, slots=True)
 class GitHubSubpath:
-    """Declare one directory subpath in a public GitHub repository."""
+    """Declare a GitHub directory with optional relative file-path regex filters.
+
+    Include patterns are alternatives; any exclude match wins. Matching uses
+    regex search on forward-slash paths, with case-sensitive defaults.
+    """
 
     owner: str
     repository: str
     path: str
     branch: str | None = None
     commit: str | None = None
+    include: Sequence[str] = field(default=(), kw_only=True)
+    exclude: Sequence[str] = field(default=(), kw_only=True)
+    _includes: tuple[re.Pattern[str], ...] = field(
+        init=False, repr=False, compare=False
+    )
+    _excludes: tuple[re.Pattern[str], ...] = field(
+        init=False, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         _validate_repository_component(self.owner, "owner")
@@ -82,6 +98,10 @@ class GitHubSubpath:
             _validate_branch(self.branch)
         if self.commit is not None:
             object.__setattr__(self, "commit", _normalize_commit(self.commit))
+        for name, compiled_name in (("include", "_includes"), ("exclude", "_excludes")):
+            patterns, compiled = _compile_patterns(getattr(self, name), name)
+            object.__setattr__(self, name, patterns)
+            object.__setattr__(self, compiled_name, compiled)
 
     def sync(
         self,
@@ -91,8 +111,8 @@ class GitHubSubpath:
     ) -> GitHubSyncResult:
         """Synchronize the owned target and return its resolved commit state.
 
-        A matching ``.commit`` marker is authoritative: target content is not
-        inspected. When the marker differs, the complete target is replaced.
+        Matching commit and filter metadata are authoritative: target content
+        is not inspected. A change to either replaces the complete target.
         """
         destination = _inspect_target(target)
         active_client = client
@@ -115,7 +135,9 @@ class GitHubSubpath:
         else:
             desired_commit = self.commit
 
-        if _read_marker(destination) == desired_commit:
+        if _read_marker(destination) == desired_commit and _read_filters(
+            destination
+        ) == _filter_configuration(self.include, self.exclude):
             return GitHubSyncResult(destination, desired_commit, False)
 
         active_client = active_client or _default_client()
@@ -164,8 +186,20 @@ def _synchronize(
                 raise GitHubSubpathError(
                     "could not download the requested GitHub archive"
                 ) from error
-            materialize_subpath(archive, RepositoryPath(source.path), staged)
+            materialize_subpath(
+                archive,
+                RepositoryPath(source.path),
+                staged,
+                include=source._includes,
+                exclude=source._excludes,
+            )
             (staged / ".commit").write_text(commit + "\n", encoding="ascii")
+            if source.include or source.exclude:
+                (staged / _FILTER_MARKER).write_text(
+                    json.dumps(_filter_configuration(source.include, source.exclude))
+                    + "\n",
+                    encoding="utf-8",
+                )
             _replace_target(staged, target, temporary / "previous")
     except GitHubSubpathError:
         raise
@@ -195,7 +229,9 @@ def _inspect_target(value: Pathish) -> Path:
     except (TypeError, OSError) as error:
         raise GitHubSubpathError(f"invalid target path: {value!r}") from error
     if not target.name:
-        raise GitHubSubpathError("target must name a directory below an existing parent")
+        raise GitHubSubpathError(
+            "target must name a directory below an existing parent"
+        )
     parent = target.parent
     if not parent.is_dir():
         raise GitHubSubpathError(f"target parent is not a directory: {parent}")
@@ -221,6 +257,64 @@ def _read_marker(target: Path) -> str | None:
     except (OSError, UnicodeError):
         return None
     return value if _COMMIT.fullmatch(value) else None
+
+
+def _compile_patterns(
+    value: object,
+    label: str,
+) -> tuple[tuple[str, ...], tuple[re.Pattern[str], ...]]:
+    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+        raise GitHubSubpathError(f"{label} must be a sequence of regex strings")
+    patterns = tuple(value)
+    compiled: list[re.Pattern[str]] = []
+    for index, pattern in enumerate(patterns):
+        if not isinstance(pattern, str):
+            raise GitHubSubpathError(f"{label}[{index}] must be a regex string")
+        try:
+            compiled.append(re.compile(pattern))
+        except (re.error, OverflowError, RecursionError) as error:
+            raise GitHubSubpathError(
+                f"{label}[{index}] is an invalid regex: {error}"
+            ) from error
+    return patterns, tuple(compiled)
+
+
+def _filter_configuration(
+    include: Sequence[str], exclude: Sequence[str]
+) -> dict[str, object]:
+    return {
+        "version": 1,
+        "include": sorted(set(include)),
+        "exclude": sorted(set(exclude)),
+    }
+
+
+def _read_filters(target: Path) -> dict[str, object] | None:
+    marker = target / _FILTER_MARKER
+    try:
+        mode = marker.lstat().st_mode
+    except FileNotFoundError:
+        return _filter_configuration((), ())
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(mode) or marker.is_junction():
+            return None
+        value = json.loads(marker.read_text(encoding="utf-8"))
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"version", "include", "exclude"}
+            or type(value["version"]) is not int
+            or value["version"] != 1
+            or not isinstance(value["include"], list)
+            or not isinstance(value["exclude"], list)
+        ):
+            return None
+        include, _ = _compile_patterns(value["include"], "include")
+        exclude, _ = _compile_patterns(value["exclude"], "exclude")
+        return _filter_configuration(include, exclude)
+    except (OSError, UnicodeError, ValueError, RecursionError):
+        return None
 
 
 def _validate_repository_component(value: str, label: str) -> None:

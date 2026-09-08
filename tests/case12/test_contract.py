@@ -1,4 +1,6 @@
+from dataclasses import FrozenInstanceError
 from pathlib import Path
+import re
 
 import pytest
 
@@ -7,6 +9,54 @@ from zuu.case12 import GitHubSubpath, GitHubSubpathError
 
 
 SHA = "a" * 40
+
+
+def test_filters_are_keyword_only_immutable_snapshots() -> None:
+    include = [r"\.py$", r"\.md$"]
+    exclude = [r"^tests/", r"^draft"]
+    source = GitHubSubpath(
+        "org", "repo", "templates", None, SHA, include=include, exclude=exclude
+    )
+    include.clear()
+    exclude.append("new")
+    assert source.include == (r"\.py$", r"\.md$")
+    assert source.exclude == (r"^tests/", r"^draft")
+    assert hash(source) == hash(
+        GitHubSubpath(
+            "org",
+            "repo",
+            "templates",
+            None,
+            SHA,
+            include=source.include,
+            exclude=source.exclude,
+        )
+    )
+    with pytest.raises(FrozenInstanceError):
+        source.include = ()
+    with pytest.raises(TypeError):
+        GitHubSubpath("org", "repo", "templates", None, SHA, ())
+
+
+@pytest.mark.parametrize("field", ["include", "exclude"])
+@pytest.mark.parametrize("value", [".*", b".*", None, 3, {"a"}, iter(["a"])])
+def test_invalid_filter_collections(field: str, value: object) -> None:
+    with pytest.raises(GitHubSubpathError, match=field):
+        GitHubSubpath("org", "repo", "templates", **{field: value})
+
+
+@pytest.mark.parametrize("field", ["include", "exclude"])
+@pytest.mark.parametrize(
+    "value", [42, b"a", re.compile("a"), "[", "a{999999999999999999}"]
+)
+def test_invalid_filter_elements_identify_the_index(field: str, value: object) -> None:
+    with pytest.raises(GitHubSubpathError, match=rf"{field}\[1\]"):
+        GitHubSubpath("org", "repo", "templates", **{field: ["valid", value]})
+
+
+def test_empty_regex_is_valid() -> None:
+    source = GitHubSubpath("org", "repo", "templates", include=("",), exclude=("",))
+    assert source.include == source.exclude == ("",)
 
 
 def test_case12_exposes_its_primary_contract_and_dependency() -> None:
