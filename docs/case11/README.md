@@ -137,9 +137,23 @@ The controls are:
 
 Checked results are returned in declared choice order, regardless of the order in
 which they were toggled. The active menu is repainted in place and collapses to a
-one-line outcome after confirmation or cancellation. Long prompts, choices, and
-validation messages are explicitly wrapped to the output terminal width; repainting
-tracks those physical rows so moving the pointer does not leave earlier copies behind.
+one-line outcome after confirmation or cancellation, with the next prompt immediately
+below it. A long question or outcome label can be shortened with `…` to fit that line.
+
+When the whole menu cannot fit, a scrolling window follows the pointer. A range such
+as `13-17/17` identifies the visible choices. Hidden choices retain their checked state;
+`a` and `i` still affect the entire collection. Constrained layouts use compact key
+help and shorten long labels or feedback with `…`, accounting for wide and combining
+characters. The menu reserves a row for cursor placement so repainting stays within
+the viewport.
+
+Dimensions are refreshed on the next input-driven repaint, including completion.
+Growing the terminal exposes more content. Shrinking an active terminal can discard
+or reflow its old menu origin; case11 reports `TerminalUnavailableError` and asks you
+to restart selection at the new size instead of erasing uncertain rows. Terminal
+modes and cursor visibility are restored on that error. A terminal smaller than
+12 columns or 6 rows is rejected before drawing a menu. Resizing while idle does not
+trigger a background redraw.
 
 ## Try the real terminal experience
 
