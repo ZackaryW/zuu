@@ -108,6 +108,20 @@ def test_required_empty_submission_shows_feedback_then_accepts_choice(
     assert "! one or more choices are required" in output
 
 
+@pytest.mark.parametrize("ending", [(Action.TOGGLE, Action.SUBMIT), (Action.CANCEL,)])
+def test_repeated_empty_submissions_do_not_grow_capture(monkeypatch, selector, ending):
+    once, first_output, _ = run_script(
+        monkeypatch, selector, (Action.SUBMIT, *ending), required=True
+    )
+    repeated, output, session = run_script(
+        monkeypatch, selector, (Action.SUBMIT,) * 5000 + ending, required=True
+    )
+    assert repeated == once
+    assert session.exited
+    assert len(output) == len(first_output)
+    assert output == first_output
+
+
 def test_toggle_all_clear_and_invert_are_composable(
     monkeypatch: pytest.MonkeyPatch, selector: CliSelector[str]
 ) -> None:

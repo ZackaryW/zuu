@@ -40,6 +40,7 @@ class AnsiRenderer:
         self._painted = False
         self._finished = False
         self._window_start = 0
+        self._last_frame: tuple[str, ...] = ()
 
     @property
     def height(self) -> int:
@@ -51,22 +52,29 @@ class AnsiRenderer:
         if self._finished:
             raise RuntimeError("cannot render a finished checklist")
         self._refresh_dimensions()
+        width = self._columns - 1
+        # Decide on compact layout before formatting or wrapping hidden choices.
+        if self._logical_height >= self._lines or any(
+            _fit_text(label, width - 4) != label for label in self._labels
+        ):
+            self._paint(self._compact_rows(state))
+            return
         instruction = (
             "(Use arrow keys to move, <space> to select, "
             "<a> to toggle, <i> to invert)"
         )
-        lines = [f"? {self._message} {instruction}"]
+        # A question larger than the viewport necessarily needs compact layout.
+        # Bound its candidate prefix before allocating a formatted copy.
+        message = _fit_text(self._message, width * self._lines)
+        lines = [f"? {message} {instruction}"]
         lines.extend(
             f"{'»' if index == state.pointed else ' '} "
             f"{'◉' if index in state.selected else '○'} {label}"
             for index, label in enumerate(self._labels)
         )
         lines.append(f"! {state.error}" if state.error else "")
-        rows = [row for line in lines for row in _wrap_terminal_line(line, self._columns - 1)]
-        if len(rows) >= self._lines or any(
-            sum(_terminal_cell_width(c) for c in label) + 4 >= self._columns
-            for label in self._labels
-        ):
+        rows = [row for line in lines for row in _wrap_terminal_line(line, width)]
+        if len(rows) >= self._lines:
             rows = self._compact_rows(state)
         self._paint(rows)
 
@@ -97,14 +105,13 @@ class AnsiRenderer:
             self._window_start = state.pointed - count + 1
         stop = self._window_start + count
         rows = [
-            _fit_text(f"? {self._message}", width),
+            f"? {_fit_text(self._message, width - 2)}",
             _fit_text("↑↓ Space a i Enter ^Q", width),
         ]
         rows.extend(
-            _fit_text(
-                f"{'»' if index == state.pointed else ' '} "
-                f"{'◉' if index in state.selected else '○'} {self._labels[index]}", width
-            )
+            f"{'»' if index == state.pointed else ' '} "
+            f"{'◉' if index in state.selected else '○'} "
+            f"{_fit_text(self._labels[index], width - 4)}"
             for index in range(self._window_start, stop)
         )
         rows.append(_fit_text(f"{self._window_start + 1}-{stop}/{len(self._labels)}", width))
@@ -121,7 +128,8 @@ class AnsiRenderer:
         elif not state.selected:
             answer = "done"
         elif len(state.selected) == 1:
-            answer = f"[{self._labels[state.selected_indexes[0]]}]"
+            label = self._labels[next(iter(state.selected))]
+            answer = f"[{_fit_text(label, self._columns - 1)}]"
         else:
             answer = f"done ({len(state.selected)} selections)"
         width = self._columns - 1
@@ -138,6 +146,9 @@ class AnsiRenderer:
             for line in lines
             for row in _wrap_terminal_line(line, self._columns - 1)
         ]
+        frame = tuple(rows)
+        if self._painted and frame == self._last_frame:
+            return
         active_height = len(rows)
         height = max(active_height, self._painted_height)
         if self._painted:
@@ -148,6 +159,7 @@ class AnsiRenderer:
         if height > active_height:
             self._stream.write(f"\x1b[{height - active_height}A")
         self._stream.flush()
+        self._last_frame = frame
         self._painted_height = active_height
         self._painted = True
 
@@ -160,17 +172,19 @@ def _terminal_size(stream: TextIO) -> os.terminal_size:
 
 
 def _fit_text(text: str, columns: int) -> str:
-    if sum(_terminal_cell_width(c) for c in text) <= columns:
-        return text
     result = []
     used = 0
     for character in text:
         width = _terminal_cell_width(character)
-        if used + width > columns - 1:
-            break
+        if used + width > columns:
+            # Make room for the ellipsis, removing any combining marks with
+            # their base character when the last occupied cell must go.
+            while result and used > columns - 1:
+                used -= _terminal_cell_width(result.pop())
+            return "".join(result) + "…"
         result.append(character)
         used += width
-    return "".join(result) + "…"
+    return text
 
 
 def _wrap_terminal_line(line: str, columns: int) -> tuple[str, ...]:
