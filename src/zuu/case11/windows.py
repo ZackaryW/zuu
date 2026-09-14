@@ -43,9 +43,16 @@ class WindowsKeyReader:
 
     def read_action(self) -> Action | None:
         """Read and translate one key, consuming extended-key continuations."""
-        first = self._read_character()
-        continuation = self._read_character() if first in {"\x00", "\xe0"} else None
+        first = self._read()
+        continuation = self._read() if first in {"\x00", "\xe0"} else None
         return translate_windows_key(first, continuation)
+
+    def _read(self) -> str:
+        character = self._read_character()
+        # The CRT can return WEOF when its console is no longer available.
+        if character in {"", "\uffff"}:
+            raise TerminalUnavailableError("Windows console input is closed or unavailable")
+        return character
 
 
 class ConsoleApi(Protocol):

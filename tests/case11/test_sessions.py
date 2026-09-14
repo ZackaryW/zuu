@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from zuu.case11 import TerminalUnavailableError
+from zuu.case11 import TerminalUnavailableError, terminal
 from zuu.case11.posix import PosixKeyReader, PosixTerminalSession
 from zuu.case11.state import Action
 from zuu.case11.terminal import HIDE_CURSOR, SHOW_CURSOR
@@ -226,3 +226,39 @@ def test_sessions_reject_noninteractive_streams(session_type: str) -> None:
     with pytest.raises(TerminalUnavailableError, match="interactive"):
         with session:
             pass
+
+
+@pytest.mark.parametrize("session_type", ["windows", "posix"])
+@pytest.mark.parametrize("truncated", [False, True])
+def test_closed_input_exits_once_and_restores_session(monkeypatch, session_type, truncated):
+    source = TtyStream(descriptor=10)
+    destination = TtyStream(descriptor=11)
+    prefix = ("\xe0" if session_type == "windows" else "\x1b") if truncated else ""
+    characters = iter((prefix, "") if truncated else ("",))
+
+    def read():
+        try:
+            return next(characters)
+        except StopIteration:
+            pytest.fail("selection retried closed input")
+
+    if session_type == "windows":
+        console = FakeConsole()
+        session = WindowsTerminalSession(
+            source, destination, console=console, reader=WindowsKeyReader(read)
+        )
+    else:
+        termios = FakeTermios()
+        session = PosixTerminalSession(
+            source, destination, termios_module=termios, tty_module=FakeTty(),
+            reader=PosixKeyReader(read_character=read), term="xterm",
+        )
+    monkeypatch.setattr(terminal, "_make_session", lambda *_: session)
+    with pytest.raises(TerminalUnavailableError, match="input.*closed"):
+        terminal.run_checkbox("Choose", ("One",), required=True,
+                              input_stream=source, output_stream=destination)
+    assert destination.getvalue().endswith(SHOW_CURSOR)
+    if session_type == "windows":
+        assert console.calls[-2:] == [(11, 0x02), (10, 0x01)]
+    else:
+        assert termios.calls[-1] == ("set", 10, 0, [1, 2, 3])

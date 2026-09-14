@@ -45,7 +45,8 @@ class PosixKeyReader:
 
             def read_character() -> str:
                 data = os.read(file_descriptor, 1)
-                return data.decode("ascii", errors="ignore")
+                # Unsupported bytes are ignored keys, not zero-byte EOF.
+                return data.decode("ascii", errors="replace")
 
             def continuation_ready() -> bool:
                 return bool(select.select((file_descriptor,), (), (), 0.05)[0])
@@ -55,18 +56,24 @@ class PosixKeyReader:
 
     def read_action(self) -> Action | None:
         """Read one key, consuming at most one three-byte ANSI arrow sequence."""
-        first = self._read_character()
+        first = self._read()
         if first != "\x1b":
             return translate_posix_sequence(first)
         if self._continuation_ready is not None and not self._continuation_ready():
             return None
-        second = self._read_character()
+        second = self._read()
         if second != "[":
             return None
         if self._continuation_ready is not None and not self._continuation_ready():
             return None
-        third = self._read_character()
+        third = self._read()
         return translate_posix_sequence(first + second + third)
+
+    def _read(self) -> str:
+        character = self._read_character()
+        if not character:
+            raise TerminalUnavailableError("terminal input is closed")
+        return character
 
 
 class PosixTerminalSession:
