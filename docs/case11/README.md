@@ -24,8 +24,8 @@ with Questionary or a replacement for Prompt Toolkit.
 
 `case11` works like a station clerk. If a traveler already hands over named tickets,
 the clerk honors those tickets immediately. If no tickets were supplied and a person
-is standing at the counter, the clerk opens a live checklist. Automation never gets
-stuck waiting for a person who is not there.
+is standing at the counter, the clerk opens a live checklist. Calls with
+noninteractive streams never wait for a person.
 
 This combines two responsibilities into one lifecycle:
 
@@ -139,6 +139,8 @@ Checked results are returned in declared choice order, regardless of the order i
 which they were toggled. The active menu is repainted in place and collapses to a
 one-line outcome after confirmation or cancellation, with the next prompt immediately
 below it. A long question or outcome label can be shortened with `…` to fit that line.
+Actions that leave the visible frame unchanged do not write another copy. For
+example, holding Enter on an empty required checklist shows validation once.
 
 When the whole menu cannot fit, a scrolling window follows the pointer. A range such
 as `13-17/17` identifies the visible choices. Hidden choices retain their checked state;
@@ -146,6 +148,8 @@ as `13-17/17` identifies the visible choices. Hidden choices retain their checke
 help and shorten long labels or feedback with `…`, accounting for wide and combining
 characters. The menu reserves a row for cursor placement so repainting stays within
 the viewport.
+Compact layout formats the visible choices and bounded text prefixes, so hidden
+choices and long overflowing labels do not require a complete wrapped frame first.
 
 Dimensions are refreshed on the next input-driven repaint, including completion.
 Growing the terminal exposes more content. Shrinking an active terminal can discard
@@ -237,17 +241,29 @@ Input modes and cursor visibility are restored after confirmation, cancellation,
 input failure, rendering failure, or another exception. Case11 cannot coordinate
 unrelated threads that print into the same terminal while the checklist is active.
 
+If input closes during a session, including partway through an arrow key, selection
+raises `TerminalUnavailableError` and attempts the same terminal cleanup. Loss of a
+Windows console is also reported when its reader returns the no-console sentinel.
+Closed input is an error, not a cancellation or an empty successful selection.
+Unsupported non-ASCII input and an escape-continuation timeout remain ignored keys.
+
 `select()` accepts `input_stream` and `output_stream` keyword arguments and otherwise
 uses `sys.stdin` and `sys.stdout`. Explicit selections do not inspect these streams.
 Interactive replacements must expose truthful `isatty()` behavior and the platform
 console or file-descriptor operations required by the session.
 
+For unattended services and tests, supply explicit values or use noninteractive
+streams. An open terminal still waits for keyboard input; there is no idle timeout.
+When scripting interactive tests, send a valid submission or cancellation and bound
+the subprocess lifetime. Identical frames are suppressed, but a capture retaining
+every changing frame can still grow; limit or drain that capture in the caller.
+
 ## Errors
 
 - `SelectionError` reports invalid messages or choices, duplicate values, unknown
   explicit values, and missing required noninteractive input.
-- `TerminalUnavailableError` is a `SelectionError` for unsupported console handles,
-  terminal modes, platforms, or restoration failures.
+- `TerminalUnavailableError` is a `SelectionError` for closed input, unavailable
+  console handles, terminal modes, platforms, or restoration failures.
 
 `Choice`, `Selection`, and `CliSelector` are immutable. A cancelled `Selection`
 cannot be constructed with selected values.
@@ -255,7 +271,7 @@ cannot be constructed with selected values.
 ## Deliberate limits
 
 Case11 is a checklist, not a terminal UI framework. It does not provide search,
-scrolling, asynchronous prompts, disabled choices, descriptions, arbitrary styling,
+asynchronous prompts, disabled choices, descriptions, arbitrary styling,
 validation toolbars, custom key maps, or background-output patching.
 
 ## Tests
